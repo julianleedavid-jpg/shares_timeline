@@ -394,7 +394,7 @@ for col in plot_df.columns:
     )
 
 fig.update_layout(
-    hovermode="x unified",
+    hovermode="closest",
     xaxis_title="Date / Time",
     yaxis_title=y_label,
     height=520,
