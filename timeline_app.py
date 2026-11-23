@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import os
+import time
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -8,6 +9,8 @@ import streamlit as st
 import yfinance as yf
 
 WATCHLIST_FILE = "watchlist.json"
+SECTOR_OVERRIDES_FILE = "sector_overrides.json"
+
 DEFAULT_WATCHLISTS = {
     "Main Watchlist": [
         "AAPL",
@@ -19,6 +22,57 @@ DEFAULT_WATCHLISTS = {
         "RIO.L",
         "DUKE.L",
     ],
+}
+
+# Reliable fallback sector map when Yahoo Finance quoteSummary/.info is rate-limited
+KNOWN_TICKER_SECTORS = {
+    "AAPL": "Technology",
+    "MSFT": "Technology",
+    "GOOGL": "Communication Services",
+    "GOOG": "Communication Services",
+    "AMZN": "Consumer Cyclical",
+    "NVDA": "Technology",
+    "META": "Communication Services",
+    "TSLA": "Consumer Cyclical",
+    "AV.L": "Financial Services",
+    "BARC.L": "Financial Services",
+    "LLOY.L": "Financial Services",
+    "NWG.L": "Financial Services",
+    "HSBA.L": "Financial Services",
+    "LGEN.L": "Financial Services",
+    "MNG.L": "Financial Services",
+    "SDLF.L": "Financial Services",
+    "DUKE.L": "Financial Services",
+    "JPM": "Financial Services",
+    "BRK-B": "Financial Services",
+    "BLND.L": "Real Estate",
+    "LMP.L": "Real Estate",
+    "LAND.L": "Real Estate",
+    "SGRO.L": "Real Estate",
+    "GSK.L": "Healthcare",
+    "AZN.L": "Healthcare",
+    "JNJ": "Healthcare",
+    "NG.L": "Utilities",
+    "UKW.L": "Utilities",
+    "SSE.L": "Utilities",
+    "CNA.L": "Utilities",
+    "RR.L": "Industrials",
+    "UPS": "Industrials",
+    "BA.L": "Industrials",
+    "VOD.L": "Communication Services",
+    "VZ": "Communication Services",
+    "BT-A.L": "Communication Services",
+    "BOWL.L": "Consumer Cyclical",
+    "BWY.L": "Consumer Cyclical",
+    "MO": "Consumer Defensive",
+    "ULVR.L": "Consumer Defensive",
+    "DGE.L": "Consumer Defensive",
+    "TSCO.L": "Consumer Defensive",
+    "SHEL.L": "Energy",
+    "BP.L": "Energy",
+    "RIO.L": "Basic Materials",
+    "GLEN.L": "Basic Materials",
+    "AAL.L": "Basic Materials",
 }
 
 TIMELINE_PRESETS = {
@@ -78,6 +132,33 @@ def save_watchlists(watchlists: dict[str, list[str]]) -> bool:
         return False
 
 
+def load_sector_overrides() -> dict[str, str]:
+    """Loads user-saved ticker-to-sector mappings."""
+    if os.path.exists(SECTOR_OVERRIDES_FILE):
+        try:
+            with open(SECTOR_OVERRIDES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return {
+                    str(k).strip().upper(): str(v).strip()
+                    for k, v in data.items()
+                    if str(k).strip() and str(v).strip()
+                }
+        except Exception:
+            pass
+    return {}
+
+
+def save_sector_overrides(overrides: dict[str, str]) -> bool:
+    """Saves user-edited ticker-to-sector mappings to local JSON."""
+    try:
+        with open(SECTOR_OVERRIDES_FILE, "w", encoding="utf-8") as f:
+            json.dump(dict(sorted(overrides.items())), f, indent=4)
+        return True
+    except OSError:
+        return False
+
+
 def parse_imported_tickers(uploaded_file, pasted_text: str) -> list[str]:
     """Extracts ticker symbols from an uploaded CSV/TXT/JSON file or pasted text."""
     extracted: list[str] = []
@@ -126,17 +207,45 @@ def parse_imported_tickers(uploaded_file, pasted_text: str) -> list[str]:
 
 
 @st.cache_data(ttl=86400)
-def fetch_ticker_sector(ticker_symbol: str) -> str:
-    """Fetches sector classification for a ticker via yfinance, defaulting to 'Unclassified'."""
-    symbol = ticker_symbol.strip().upper()
+def _fetch_live_sector_cached(symbol: str) -> str | None:
+    """Caches only valid live sector strings from yfinance so failures aren't stuck in cache."""
+    for attempt in range(2):
+        try:
+            info = yf.Ticker(symbol).info
+            if isinstance(info, dict):
+                sector = info.get("sector") or info.get("sectorDisp")
+                if sector and str(sector).strip():
+                    return str(sector).strip()
+        except Exception:
+            time.sleep(0.5 * (attempt + 1))
+
     try:
-        info = yf.Ticker(symbol).info
-        if isinstance(info, dict):
-            sector = info.get("sector") or info.get("sectorDisp")
-            if sector and str(sector).strip():
-                return str(sector).strip()
+        search = yf.Search(symbol, max_results=3)
+        quotes = getattr(search, "quotes", None) or []
+        for q in quotes:
+            if str(q.get("symbol", "")).upper() == symbol:
+                sec = q.get("sector") or q.get("sectorDisp")
+                if sec and str(sec).strip():
+                    return str(sec).strip()
     except Exception:
         pass
+
+    return None
+
+
+def resolve_ticker_sector(ticker_symbol: str, overrides: dict[str, str]) -> str:
+    """Resolves sector via user overrides -> live Yahoo lookup -> built-in map -> 'Unclassified'."""
+    sym = ticker_symbol.strip().upper()
+    if sym in overrides and overrides[sym]:
+        return overrides[sym]
+
+    live_sector = _fetch_live_sector_cached(sym)
+    if live_sector:
+        return live_sector
+
+    if sym in KNOWN_TICKER_SECTORS:
+        return KNOWN_TICKER_SECTORS[sym]
+
     return "Unclassified"
 
 
@@ -237,7 +346,9 @@ def build_line_figure(
     return fig
 
 
-def build_summary_rows(series_df: pd.DataFrame, name_col: str, extra_map: dict[str, str] | None = None) -> list[dict]:
+def build_summary_rows(
+    series_df: pd.DataFrame, name_col: str, extra_map: dict[str, str] | None = None
+) -> list[dict]:
     """Calculates start, latest, change, percentage change, low, and high across a timeline."""
     rows = []
     for col in series_df.columns:
@@ -274,7 +385,7 @@ st.title("📊 Watchlist & Sector Share Price Timeline")
 if "watchlists" not in st.session_state:
     st.session_state.watchlists = load_watchlists()
 if "sector_overrides" not in st.session_state:
-    st.session_state.sector_overrides = {}
+    st.session_state.sector_overrides = load_sector_overrides()
 
 wl_names = list(st.session_state.watchlists.keys())
 if "active_watchlist" not in st.session_state or st.session_state.active_watchlist not in wl_names:
@@ -480,12 +591,12 @@ with tab_shares:
 with tab_sectors:
     st.subheader("Sector Average Timeline")
 
-    ticker_to_sector: dict[str, str] = {}
-    for col in prices.columns:
-        sym = str(col).strip().upper()
-        ticker_to_sector[sym] = st.session_state.sector_overrides.get(
-            sym, fetch_ticker_sector(sym)
+    ticker_to_sector = {
+        str(col).strip().upper(): resolve_ticker_sector(
+            str(col).strip().upper(), st.session_state.sector_overrides
         )
+        for col in prices.columns
+    }
 
     with st.expander("Adjust Sector Assignments (optional)", expanded=False):
         mapping_df = pd.DataFrame(
@@ -498,20 +609,13 @@ with tab_sectors:
             disabled=["Ticker"],
             key="sector_mapping_editor",
         )
-        if st.button("Apply Sector Overrides"):
+        if st.button("Apply & Save Sector Assignments"):
             for _, r in edited_df.iterrows():
                 t_sym = str(r["Ticker"]).strip().upper()
                 sec_val = str(r["Sector"]).strip() or "Unclassified"
                 st.session_state.sector_overrides[t_sym] = sec_val
+            save_sector_overrides(st.session_state.sector_overrides)
             st.rerun()
-
-    # Recompute sector map after any overrides
-    ticker_to_sector = {
-        str(col).strip().upper(): st.session_state.sector_overrides.get(
-            str(col).strip().upper(), fetch_ticker_sector(str(col).strip().upper())
-        )
-        for col in prices.columns
-    }
 
     sector_groups: dict[str, list[str]] = {}
     for sym, sec in ticker_to_sector.items():
