@@ -100,7 +100,12 @@ def parse_imported_tickers(uploaded_file, pasted_text: str) -> list[str]:
             if not df.empty:
                 target_col = None
                 for col in df.columns:
-                    if str(col).strip().lower() in {"ticker", "tickers", "symbol", "symbols"}:
+                    if str(col).strip().lower() in {
+                        "ticker",
+                        "tickers",
+                        "symbol",
+                        "symbols",
+                    }:
                         target_col = col
                         break
                 series = df[target_col] if target_col is not None else df.iloc[:, 0]
@@ -118,6 +123,21 @@ def parse_imported_tickers(uploaded_file, pasted_text: str) -> list[str]:
                 extracted.append(part)
 
     return clean_tickers(extracted)
+
+
+@st.cache_data(ttl=86400)
+def fetch_ticker_sector(ticker_symbol: str) -> str:
+    """Fetches sector classification for a ticker via yfinance, defaulting to 'Unclassified'."""
+    symbol = ticker_symbol.strip().upper()
+    try:
+        info = yf.Ticker(symbol).info
+        if isinstance(info, dict):
+            sector = info.get("sector") or info.get("sectorDisp")
+            if sector and str(sector).strip():
+                return str(sector).strip()
+    except Exception:
+        pass
+    return "Unclassified"
 
 
 @st.cache_data(ttl=300)
@@ -175,15 +195,86 @@ def fetch_timeline_prices(
     return closes.dropna(how="all")
 
 
+def build_line_figure(
+    series_df: pd.DataFrame, mode: str, y_label: str, entity_label: str = "Ticker"
+) -> go.Figure:
+    """Builds a Plotly line chart where hovering a line shows info only for that series."""
+    if mode == "Normalized (% Change)":
+        plot_df = pd.DataFrame(index=series_df.index)
+        for col in series_df.columns:
+            s = series_df[col].dropna()
+            if not s.empty and float(s.iloc[0]) != 0.0:
+                plot_df[col] = ((series_df[col] - float(s.iloc[0])) / float(s.iloc[0])) * 100.0
+        hover_fmt = "%{y:+.2f}%"
+    else:
+        plot_df = series_df
+        hover_fmt = "%{y:,.2f}"
+
+    fig = go.Figure()
+    for col in plot_df.columns:
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df.index,
+                y=plot_df[col],
+                mode="lines",
+                name=col,
+                connectgaps=True,
+                hovertemplate=(
+                    f"<b>{entity_label}: {col}</b><br>"
+                    f"Date: %{{x}}<br>"
+                    f"Value: {hover_fmt}<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        hovermode="closest",
+        xaxis_title="Date / Time",
+        yaxis_title=y_label,
+        height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    )
+    return fig
+
+
+def build_summary_rows(series_df: pd.DataFrame, name_col: str, extra_map: dict[str, str] | None = None) -> list[dict]:
+    """Calculates start, latest, change, percentage change, low, and high across a timeline."""
+    rows = []
+    for col in series_df.columns:
+        s = series_df[col].dropna()
+        if len(s) >= 2:
+            start_p = float(s.iloc[0])
+            end_p = float(s.iloc[-1])
+            diff = end_p - start_p
+            pct = (diff / start_p) * 100.0 if start_p else 0.0
+            row = {name_col: col}
+            if extra_map is not None:
+                row["Tickers"] = extra_map.get(col, "")
+            row.update(
+                {
+                    "Start": round(start_p, 2),
+                    "Latest": round(end_p, 2),
+                    "Change": round(diff, 2),
+                    "Change (%)": round(pct, 2),
+                    "Period Low": round(float(s.min()), 2),
+                    "Period High": round(float(s.max()), 2),
+                }
+            )
+            rows.append(row)
+    return rows
+
+
 st.set_page_config(
-    page_title="Watchlist Share Price Timeline",
+    page_title="Watchlist & Sector Share Price Timeline",
     page_icon="📊",
     layout="wide",
 )
-st.title("📊 Watchlist Share Price Timeline")
+st.title("📊 Watchlist & Sector Share Price Timeline")
 
 if "watchlists" not in st.session_state:
     st.session_state.watchlists = load_watchlists()
+if "sector_overrides" not in st.session_state:
+    st.session_state.sector_overrides = {}
 
 wl_names = list(st.session_state.watchlists.keys())
 if "active_watchlist" not in st.session_state or st.session_state.active_watchlist not in wl_names:
@@ -217,7 +308,6 @@ with col_w3:
 with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export", expanded=False):
     m_col1, m_col2, m_col3 = st.columns(3)
 
-    # 1. Create / Delete Watchlists
     with m_col1:
         st.markdown("**Watchlists**")
         new_wl_name = st.text_input("New Watchlist Name", placeholder="e.g., UK Income")
@@ -240,14 +330,17 @@ with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export"
                 save_watchlists(st.session_state.watchlists)
                 st.rerun()
 
-    # 2. Add / Remove Tickers in Active Watchlist
     with m_col2:
         st.markdown(f"**Edit '{selected_wl}' Tickers**")
         add_ticker_raw = st.text_input(
             "Add Ticker(s)", placeholder="e.g., VOD.L or AAPL, MSFT"
         )
         if st.button("Add Ticker(s)"):
-            to_add = [t.strip().upper() for t in add_ticker_raw.replace("\n", ",").split(",") if t.strip()]
+            to_add = [
+                t.strip().upper()
+                for t in add_ticker_raw.replace("\n", ",").split(",")
+                if t.strip()
+            ]
             if to_add:
                 updated = clean_tickers(st.session_state.watchlists[selected_wl] + to_add)
                 st.session_state.watchlists[selected_wl] = updated
@@ -259,12 +352,15 @@ with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export"
                 "Remove Ticker(s)", options=wl_tickers, default=[]
             )
             if st.button("Remove Selected Ticker(s)") and tickers_to_remove:
-                remaining = [t for t in st.session_state.watchlists[selected_wl] if t not in tickers_to_remove]
+                remaining = [
+                    t
+                    for t in st.session_state.watchlists[selected_wl]
+                    if t not in tickers_to_remove
+                ]
                 st.session_state.watchlists[selected_wl] = remaining
                 save_watchlists(st.session_state.watchlists)
                 st.rerun()
 
-    # 3. Import / Export Watchlist Tickers
     with m_col3:
         st.markdown("**Import / Export**")
         uploaded_wl_file = st.file_uploader(
@@ -367,63 +463,95 @@ if prices.empty:
     st.warning("No price data available for the selected tickers or timeline.")
     st.stop()
 
-if scale_mode == "Normalized (% Change)":
-    plot_df = pd.DataFrame(index=prices.index)
-    for col in prices.columns:
-        s = prices[col].dropna()
-        if not s.empty:
-            plot_df[col] = ((prices[col] - s.iloc[0]) / s.iloc[0]) * 100.0
-    y_label = "Return (%)"
-    hover_fmt = "%{y:+.2f}%"
-else:
-    plot_df = prices
-    y_label = "Price (USD / GBP)"
-    hover_fmt = "%{y:,.2f}"
+tab_shares, tab_sectors = st.tabs(["📈 Share Price Timeline", "🏢 Sector Timeline"])
 
-fig = go.Figure()
-for col in plot_df.columns:
-    fig.add_trace(
-        go.Scatter(
-            x=plot_df.index,
-            y=plot_df[col],
-            mode="lines",
-            name=col,
-            connectgaps=True,
-            hovertemplate=f"<b>{col}</b><br>%{{x}}<br>{hover_fmt}<extra></extra>",
+# --- TAB 1: INDIVIDUAL SHARE TIMELINE ---
+with tab_shares:
+    share_y_label = "Return (%)" if scale_mode == "Normalized (% Change)" else "Price (USD / GBP)"
+    share_fig = build_line_figure(prices, scale_mode, share_y_label, entity_label="Share")
+    st.plotly_chart(share_fig, use_container_width=True)
+
+    st.subheader("Share Period Performance Summary")
+    share_rows = build_summary_rows(prices, "Ticker")
+    if share_rows:
+        st.dataframe(pd.DataFrame(share_rows), use_container_width=True, hide_index=True)
+
+# --- TAB 2: SECTOR AVERAGE TIMELINE ---
+with tab_sectors:
+    st.subheader("Sector Average Timeline")
+
+    ticker_to_sector: dict[str, str] = {}
+    for col in prices.columns:
+        sym = str(col).strip().upper()
+        ticker_to_sector[sym] = st.session_state.sector_overrides.get(
+            sym, fetch_ticker_sector(sym)
         )
+
+    with st.expander("Adjust Sector Assignments (optional)", expanded=False):
+        mapping_df = pd.DataFrame(
+            [{"Ticker": sym, "Sector": sec} for sym, sec in ticker_to_sector.items()]
+        )
+        edited_df = st.data_editor(
+            mapping_df,
+            use_container_width=True,
+            hide_index=True,
+            disabled=["Ticker"],
+            key="sector_mapping_editor",
+        )
+        if st.button("Apply Sector Overrides"):
+            for _, r in edited_df.iterrows():
+                t_sym = str(r["Ticker"]).strip().upper()
+                sec_val = str(r["Sector"]).strip() or "Unclassified"
+                st.session_state.sector_overrides[t_sym] = sec_val
+            st.rerun()
+
+    # Recompute sector map after any overrides
+    ticker_to_sector = {
+        str(col).strip().upper(): st.session_state.sector_overrides.get(
+            str(col).strip().upper(), fetch_ticker_sector(str(col).strip().upper())
+        )
+        for col in prices.columns
+    }
+
+    sector_groups: dict[str, list[str]] = {}
+    for sym, sec in ticker_to_sector.items():
+        if sym in prices.columns:
+            sector_groups.setdefault(sec, []).append(sym)
+
+    sector_series_dict: dict[str, pd.Series] = {}
+    sector_ticker_labels: dict[str, str] = {}
+    for sec, group_cols in sorted(sector_groups.items()):
+        sector_series_dict[sec] = prices[group_cols].mean(axis=1, skipna=True)
+        sector_ticker_labels[sec] = ", ".join(group_cols)
+
+    sector_df = pd.DataFrame(sector_series_dict, index=prices.index).dropna(how="all")
+
+    available_sectors = list(sector_df.columns)
+    selected_sectors = st.multiselect(
+        "Sectors to Plot",
+        options=available_sectors,
+        default=available_sectors,
     )
 
-fig.update_layout(
-    hovermode="closest",
-    xaxis_title="Date / Time",
-    yaxis_title=y_label,
-    height=520,
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-)
-st.plotly_chart(fig, use_container_width=True)
-
-st.subheader("Period Performance Summary")
-summary_rows = []
-for col in prices.columns:
-    s = prices[col].dropna()
-    if len(s) >= 2:
-        start_p = float(s.iloc[0])
-        end_p = float(s.iloc[-1])
-        diff = end_p - start_p
-        pct = (diff / start_p) * 100.0 if start_p else 0.0
-        curr_prefix = "£" if str(col).upper().endswith(".L") else "$"
-        summary_rows.append(
-            {
-                "Ticker": col,
-                "Currency": curr_prefix,
-                "Start Price": round(start_p, 2),
-                "Latest Price": round(end_p, 2),
-                "Change": round(diff, 2),
-                "Change (%)": round(pct, 2),
-                "Period Low": round(float(s.min()), 2),
-                "Period High": round(float(s.max()), 2),
-            }
+    if not selected_sectors:
+        st.info("Select at least one sector to display the sector timeline.")
+    else:
+        filtered_sector_df = sector_df[selected_sectors]
+        sector_y_label = (
+            "Average Return (%)"
+            if scale_mode == "Normalized (% Change)"
+            else "Average Share Value"
         )
+        sector_fig = build_line_figure(
+            filtered_sector_df, scale_mode, sector_y_label, entity_label="Sector"
+        )
+        st.plotly_chart(sector_fig, use_container_width=True)
 
-if summary_rows:
-    st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+        st.subheader("Sector Period Performance Summary")
+        sector_rows = build_summary_rows(
+            filtered_sector_df, "Sector", extra_map=sector_ticker_labels
+        )
+        if sector_rows:
+            st.dataframe(
+                pd.DataFrame(sector_rows), use_container_width=True, hide_index=True
+            )
