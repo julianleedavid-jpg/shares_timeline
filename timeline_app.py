@@ -231,7 +231,7 @@ def get_live_sp500_tickers() -> list[str]:
         response.raise_for_status()[cite: 2]
         tables = pd.read_html(io.StringIO(response.text))[cite: 2]
         for table in tables:
-            if "Symbol" in table.columns:[cite: 2]
+            if "Symbol" in table.columns:
                 raw_syms = (
                     table["Symbol"]
                     .astype(str)
