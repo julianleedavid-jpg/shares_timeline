@@ -58,104 +58,93 @@ SP500_PRESET_TICKERS = [
 ]
 
 KNOWN_TICKER_SECTORS = {
-    "AAPL": "Technology",
-    "MSFT": "Technology",
-    "GOOGL": "Communication Services",
-    "GOOG": "Communication Services",
-    "AMZN": "Consumer Cyclical",
-    "NVDA": "Technology",
-    "META": "Communication Services",
-    "TSLA": "Consumer Cyclical",
-    "AV.L": "Financial Services",
-    "BARC.L": "Financial Services",
-    "LLOY.L": "Financial Services",
-    "NWG.L": "Financial Services",
-    "HSBA.L": "Financial Services",
-    "LGEN.L": "Financial Services",
-    "MNG.L": "Financial Services",
-    "SDLF.L": "Financial Services",
-    "DUKE.L": "Financial Services",
-    "III.L": "Financial Services",
-    "ABDN.L": "Financial Services",
-    "ADM.L": "Financial Services",
-    "HSX.L": "Financial Services",
-    "LSEG.L": "Financial Services",
-    "PRU.L": "Financial Services",
-    "SDR.L": "Financial Services",
-    "SMT.L": "Financial Services",
-    "STAN.L": "Financial Services",
-    "FCIT.L": "Financial Services",
-    "JPM": "Financial Services",
-    "BRK-B": "Financial Services",
-    "BLND.L": "Real Estate",
-    "LMP.L": "Real Estate",
-    "LAND.L": "Real Estate",
-    "SGRO.L": "Real Estate",
-    "GSK.L": "Healthcare",
-    "AZN.L": "Healthcare",
-    "HLN.L": "Healthcare",
-    "HLMA.L": "Healthcare",
-    "JNJ": "Healthcare",
-    "NG.L": "Utilities",
-    "UKW.L": "Utilities",
-    "SSE.L": "Utilities",
-    "SVT.L": "Utilities",
-    "UU.L": "Utilities",
-    "CNA.L": "Utilities",
-    "RR.L": "Industrials",
-    "BA.L": "Industrials",
-    "BAB.L": "Industrials",
-    "BNZL.L": "Industrials",
-    "DPLM.L": "Industrials",
-    "EXPN.L": "Industrials",
-    "IMI.L": "Industrials",
-    "INF.L": "Industrials",
-    "ITRK.L": "Industrials",
-    "REL.L": "Industrials",
-    "RTO.L": "Industrials",
-    "SMIN.L": "Industrials",
-    "WEIR.L": "Industrials",
-    "UPS": "Industrials",
-    "VOD.L": "Communication Services",
-    "BT-A.L": "Communication Services",
-    "VZ": "Communication Services",
-    "BOWL.L": "Consumer Cyclical",
-    "BWY.L": "Consumer Cyclical",
-    "BTRW.L": "Consumer Cyclical",
-    "ENT.L": "Consumer Cyclical",
-    "IHG.L": "Consumer Cyclical",
-    "KGF.L": "Consumer Cyclical",
-    "NXT.L": "Consumer Cyclical",
-    "MO": "Consumer Defensive",
-    "ULVR.L": "Consumer Defensive",
-    "DGE.L": "Consumer Defensive",
-    "TSCO.L": "Consumer Defensive",
-    "ABF.L": "Consumer Defensive",
-    "BATS.L": "Consumer Defensive",
-    "CCH.L": "Consumer Defensive",
-    "CCEP.L": "Consumer Defensive",
-    "CPG.L": "Consumer Defensive",
-    "IMB.L": "Consumer Defensive",
-    "MKS.L": "Consumer Defensive",
-    "RKT.L": "Consumer Defensive",
-    "SBRY.L": "Consumer Defensive",
-    "SHEL.L": "Energy",
-    "BP.L": "Energy",
-    "RIO.L": "Basic Materials",
-    "GLEN.L": "Basic Materials",
-    "AAL.L": "Basic Materials",
-    "ANTO.L": "Basic Materials",
-    "EDV.L": "Basic Materials",
-    "FRES.L": "Basic Materials",
-    "ALW.L": "Technology",
-    "AUTO.L": "Technology",
+    # Technology
+    "AAPL": "Technology", "MSFT": "Technology", "NVDA": "Technology", "AVGO": "Technology",
+    "ORCL": "Technology", "CRM": "Technology", "INTU": "Technology", "ADBE": "Technology",
+    "CSCO": "Technology", "IBM": "Technology", "QCOM": "Technology", "NOW": "Technology",
+    "TXN": "Technology", "ADI": "Technology", "AMAT": "Technology", "LRCX": "Technology",
+    "KLAC": "Technology", "MRVL": "Technology", "PLTR": "Technology", "PANW": "Technology",
+    "APH": "Technology", "ANET": "Technology", "AKAM": "Technology", "TWLO": "Technology",
+    "OKTA": "Technology", "DELL": "Technology", "ALW.L": "Technology", "AUTO.L": "Technology",
     "SGE.L": "Technology",
-    "AAF.L": "Industrials",
-    "BBY.L": "Industrials",
-    "MRO.L": "Industrials",
-    "PCT.L": "Financial Services",
+    # Communication Services
+    "GOOGL": "Communication Services", "GOOG": "Communication Services",
+    "META": "Communication Services", "NFLX": "Communication Services",
+    "DIS": "Communication Services", "CMCSA": "Communication Services",
+    "VZ": "Communication Services", "T": "Communication Services",
+    "RDDT": "Communication Services", "VOD.L": "Communication Services",
+    "BT-A.L": "Communication Services",
+    # Consumer Cyclical
+    "AMZN": "Consumer Cyclical", "TSLA": "Consumer Cyclical", "HD": "Consumer Cyclical",
+    "MCD": "Consumer Cyclical", "LOW": "Consumer Cyclical", "BKNG": "Consumer Cyclical",
+    "SBUX": "Consumer Cyclical", "NKE": "Consumer Cyclical", "TJX": "Consumer Cyclical",
+    "ABNB": "Consumer Cyclical", "APTV": "Consumer Cyclical", "BOWL.L": "Consumer Cyclical",
+    "BWY.L": "Consumer Cyclical", "BTRW.L": "Consumer Cyclical", "ENT.L": "Consumer Cyclical",
+    "IHG.L": "Consumer Cyclical", "KGF.L": "Consumer Cyclical", "NXT.L": "Consumer Cyclical",
     "PSON.L": "Consumer Cyclical",
-    "SN.L": "Healthcare",
+    # Consumer Defensive
+    "PG": "Consumer Defensive", "COST": "Consumer Defensive", "WMT": "Consumer Defensive",
+    "KO": "Consumer Defensive", "PEP": "Consumer Defensive", "PM": "Consumer Defensive",
+    "MO": "Consumer Defensive", "MDLZ": "Consumer Defensive", "CL": "Consumer Defensive",
+    "ULVR.L": "Consumer Defensive", "DGE.L": "Consumer Defensive", "TSCO.L": "Consumer Defensive",
+    "ABF.L": "Consumer Defensive", "BATS.L": "Consumer Defensive", "CCH.L": "Consumer Defensive",
+    "CCEP.L": "Consumer Defensive", "CPG.L": "Consumer Defensive", "IMB.L": "Consumer Defensive",
+    "MKS.L": "Consumer Defensive", "RKT.L": "Consumer Defensive", "SBRY.L": "Consumer Defensive",
+    # Financial Services
+    "BRK-B": "Financial Services", "JPM": "Financial Services", "V": "Financial Services",
+    "BAC": "Financial Services", "WFC": "Financial Services", "MS": "Financial Services",
+    "GS": "Financial Services", "BLK": "Financial Services", "AXP": "Financial Services",
+    "SPGI": "Financial Services", "SCHW": "Financial Services", "MMC": "Financial Services",
+    "CB": "Financial Services", "PGR": "Financial Services", "AFL": "Financial Services",
+    "AIG": "Financial Services", "AMP": "Financial Services", "AON": "Financial Services",
+    "AJG": "Financial Services", "AIZ": "Financial Services", "ACGL": "Financial Services",
+    "APO": "Financial Services", "ARES": "Financial Services", "C": "Financial Services",
+    "AV.L": "Financial Services", "BARC.L": "Financial Services", "LLOY.L": "Financial Services",
+    "NWG.L": "Financial Services", "HSBA.L": "Financial Services", "LGEN.L": "Financial Services",
+    "MNG.L": "Financial Services", "SDLF.L": "Financial Services", "DUKE.L": "Financial Services",
+    "III.L": "Financial Services", "ABDN.L": "Financial Services", "ADM.L": "Financial Services",
+    "HSX.L": "Financial Services", "LSEG.L": "Financial Services", "PRU.L": "Financial Services",
+    "SDR.L": "Financial Services", "SMT.L": "Financial Services", "STAN.L": "Financial Services",
+    "FCIT.L": "Financial Services", "PCT.L": "Financial Services",
+    # Healthcare
+    "UNH": "Healthcare", "LLY": "Healthcare", "JNJ": "Healthcare", "ABBV": "Healthcare",
+    "MRK": "Healthcare", "TMO": "Healthcare", "ABT": "Healthcare", "PFE": "Healthcare",
+    "DHR": "Healthcare", "BMY": "Healthcare", "AMGN": "Healthcare", "ELV": "Healthcare",
+    "MDT": "Healthcare", "ISRG": "Healthcare", "GILD": "Healthcare", "SYK": "Healthcare",
+    "REGN": "Healthcare", "VRTX": "Healthcare", "CVS": "Healthcare", "ZTS": "Healthcare",
+    "CI": "Healthcare", "ALGN": "Healthcare", "A": "Healthcare", "ILMN": "Healthcare",
+    "GSK.L": "Healthcare", "AZN.L": "Healthcare", "HLN.L": "Healthcare",
+    "HLMA.L": "Healthcare", "SN.L": "Healthcare",
+    # Industrials
+    "CAT": "Industrials", "GE": "Industrials", "RTX": "Industrials", "HON": "Industrials",
+    "UNP": "Industrials", "BA": "Industrials", "UPS": "Industrials", "DE": "Industrials",
+    "ADP": "Industrials", "LMT": "Industrials", "ETN": "Industrials", "GEV": "Industrials",
+    "MMM": "Industrials", "AOS": "Industrials", "ALLE": "Industrials", "AME": "Industrials",
+    "FERG": "Industrials", "FLEX": "Industrials", "FDXF": "Industrials",
+    "RR.L": "Industrials", "BA.L": "Industrials", "BAB.L": "Industrials",
+    "BNZL.L": "Industrials", "DPLM.L": "Industrials", "EXPN.L": "Industrials",
+    "IMI.L": "Industrials", "INF.L": "Industrials", "ITRK.L": "Industrials",
+    "REL.L": "Industrials", "RTO.L": "Industrials", "SMIN.L": "Industrials",
+    "WEIR.L": "Industrials", "AAF.L": "Industrials", "BBY.L": "Industrials",
+    "MRO.L": "Industrials",
+    # Energy
+    "XOM": "Energy", "CVX": "Energy", "COP": "Energy", "APA": "Energy",
+    "SHEL.L": "Energy", "BP.L": "Energy",
+    # Basic Materials
+    "LIN": "Basic Materials", "APD": "Basic Materials", "ALB": "Basic Materials",
+    "AMCR": "Basic Materials", "RIO.L": "Basic Materials", "GLEN.L": "Basic Materials",
+    "AAL.L": "Basic Materials", "ANTO.L": "Basic Materials", "EDV.L": "Basic Materials",
+    "FRES.L": "Basic Materials",
+    # Utilities
+    "NEE": "Utilities", "SO": "Utilities", "DUK": "Utilities", "AEP": "Utilities",
+    "SRE": "Utilities", "AES": "Utilities", "LNT": "Utilities", "AEE": "Utilities",
+    "AMT": "Real Estate", "AWK": "Utilities", "ATO": "Utilities", "BE": "Utilities",
+    "NG.L": "Utilities", "UKW.L": "Utilities", "SSE.L": "Utilities",
+    "SVT.L": "Utilities", "UU.L": "Utilities", "CNA.L": "Utilities",
+    # Real Estate
+    "PLD": "Real Estate", "WELL": "Real Estate", "ARE": "Real Estate",
+    "BLND.L": "Real Estate", "LMP.L": "Real Estate", "LAND.L": "Real Estate",
+    "SGRO.L": "Real Estate",
 }
 
 TIMELINE_PRESETS = {
@@ -196,34 +185,65 @@ def clean_tickers(raw_items) -> list[str]:
 
 @st.cache_data(ttl=86400)
 def get_live_ftse100_tickers() -> list[str]:
-    """Fetches current FTSE 100 constituents dynamically from Wikipedia, with preset fallback."""
-    url = "https://en.wikipedia.org/wiki/FTSE_100_Index"
+    """Fetches current FTSE 100 constituents dynamically from Wikipedia, with preset fallback[cite: 2]."""
+    url = "https://en.wikipedia.org/wiki/FTSE_100_Index"[cite: 2]
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
         )
-    }
+    }[cite: 2]
     try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        tables = pd.read_html(io.StringIO(response.text))
+        response = requests.get(url, headers=headers, timeout=10)[cite: 2]
+        response.raise_for_status()[cite: 2]
+        tables = pd.read_html(io.StringIO(response.text))[cite: 2]
         for table in tables:
-            if "Ticker" in table.columns:
+            if "Ticker" in table.columns:[cite: 2]
                 raw_syms = (
                     table["Ticker"]
                     .astype(str)
                     .str.strip()
                     .str.replace(".", "-", regex=False)
                     + ".L"
-                ).tolist()
+                ).tolist()[cite: 2]
                 cleaned = clean_tickers(raw_syms)
                 if len(cleaned) >= 50:
                     return cleaned
     except Exception:
         pass
     return clean_tickers(FTSE100_PRESET_TICKERS)
+
+
+@st.cache_data(ttl=86400)
+def get_live_sp500_tickers() -> list[str]:
+    """Fetches current S&P 500 constituents dynamically from Wikipedia, with preset fallback[cite: 2]."""
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"[cite: 2]
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+    }[cite: 2]
+    try:
+        response = requests.get(url, headers=headers, timeout=10)[cite: 2]
+        response.raise_for_status()[cite: 2]
+        tables = pd.read_html(io.StringIO(response.text))[cite: 2]
+        for table in tables:
+            if "Symbol" in table.columns:[cite: 2]
+                raw_syms = (
+                    table["Symbol"]
+                    .astype(str)
+                    .str.strip()
+                    .str.replace(".", "-", regex=False)
+                ).tolist()[cite: 2]
+                cleaned = clean_tickers(raw_syms)
+                if len(cleaned) >= 100:
+                    return cleaned
+    except Exception:
+        pass
+    return clean_tickers(SP500_PRESET_TICKERS)
 
 
 def load_watchlists() -> dict[str, list[str]]:
@@ -671,7 +691,7 @@ with st.expander(
                 "S&P 500" if idx_target == "Dedicated index watchlist" else selected_wl
             )
             added, dupes = apply_tickers_to_watchlist(
-                dest_wl, SP500_PRESET_TICKERS, mode="merge"
+                dest_wl, get_live_sp500_tickers(), mode="merge"
             )
             st.session_state.active_watchlist = dest_wl
             st.toast(
@@ -825,11 +845,12 @@ if selected_tf == "Custom":
     with c_e:
         end_dt = st.date_input("End Date", value=today)
 
-tab_shares, tab_sectors, tab_ftse_sectors = st.tabs(
+tab_shares, tab_sectors, tab_ftse_sectors, tab_sp500_sectors = st.tabs(
     [
         "📈 Share Price Timeline",
         "🏢 Watchlist Sector Timeline",
         "🇬🇧 FTSE 100 Sector Timeline",
+        "🇺🇸 S&P 500 Sector Timeline",
     ]
 )
 
@@ -869,11 +890,12 @@ with tab_sectors:
         if prices.empty:
             st.warning("No price data available for the selected tickers or timeline.")
         else:
+            allow_live = len(prices.columns) <= 30
             ticker_to_sector = {
                 str(col).strip().upper(): resolve_ticker_sector(
                     str(col).strip().upper(),
                     st.session_state.sector_overrides,
-                    allow_live_lookup=True,
+                    allow_live_lookup=allow_live,
                 )
                 for col in prices.columns
             }
@@ -996,6 +1018,67 @@ with tab_ftse_sectors:
             if ftse_rows:
                 st.dataframe(
                     pd.DataFrame(ftse_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+# --- TAB 4: S&P 500 SECTOR AVERAGE TIMELINE ---
+with tab_sp500_sectors:
+    st.subheader("🇺🇸 S&P 500 Sector Average Timeline")
+    st.caption(
+        "Averages all constituents within each S&P 500 sector across the selected timeline."
+    )
+
+    sp500_tickers = get_live_sp500_tickers()
+    sp500_prices = fetch_timeline_prices(sp500_tickers, selected_tf, start_dt, end_dt)
+
+    if sp500_prices.empty:
+        st.warning("Could not load S&P 500 price history for this timeline.")
+    else:
+        sp500_sector_map = {
+            str(col).strip().upper(): resolve_ticker_sector(
+                str(col).strip().upper(),
+                st.session_state.sector_overrides,
+                allow_live_lookup=False,
+            )
+            for col in sp500_prices.columns
+        }
+        sp500_sector_df, sp500_sector_labels = build_sector_averages_df(
+            sp500_prices, sp500_sector_map
+        )
+
+        sp500_sector_options = list(sp500_sector_df.columns)
+        selected_sp500_sectors = st.multiselect(
+            "S&P 500 Sectors to Plot",
+            options=sp500_sector_options,
+            default=sp500_sector_options,
+            key="sp500_sectors_multiselect",
+        )
+
+        if not selected_sp500_sectors:
+            st.info("Select at least one S&P 500 sector to plot.")
+        else:
+            filtered_sp500_df = sp500_sector_df[selected_sp500_sectors]
+            sp500_y_label = (
+                "Average Return (%)"
+                if scale_mode == "Normalized (% Change)"
+                else "Average Share Price ($)"
+            )
+            sp500_fig = build_line_figure(
+                filtered_sp500_df,
+                scale_mode,
+                sp500_y_label,
+                entity_label="S&P 500 Sector",
+            )
+            st.plotly_chart(sp500_fig, use_container_width=True)
+
+            st.subheader("S&P 500 Sector Period Performance Summary")
+            sp500_rows = build_summary_rows(
+                filtered_sp500_df, "Sector", extra_map=sp500_sector_labels
+            )
+            if sp500_rows:
+                st.dataframe(
+                    pd.DataFrame(sp500_rows),
                     use_container_width=True,
                     hide_index=True,
                 )
