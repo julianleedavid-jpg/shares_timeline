@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
+import io
 import json
 import os
 import time
 
 import pandas as pd
 import plotly.graph_objects as go
+import requests
 import streamlit as st
 import yfinance as yf
 
@@ -24,6 +26,37 @@ DEFAULT_WATCHLISTS = {
     ],
 }
 
+FTSE100_PRESET_TICKERS = [
+    "III.L", "ABDN.L", "ADM.L", "AAF.L", "ALW.L", "AAL.L", "ANTO.L", "ABF.L",
+    "AZN.L", "AUTO.L", "AV.L", "BAB.L", "BA.L", "BBY.L", "BARC.L", "BTRW.L",
+    "BP.L", "BATS.L", "BLND.L", "BT-A.L", "BNZL.L", "CNA.L", "CCH.L", "CCEP.L",
+    "CPG.L", "DGE.L", "DPLM.L", "EDV.L", "ENT.L", "EXPN.L", "FCIT.L", "FRES.L",
+    "GLEN.L", "GSK.L", "HLN.L", "HLMA.L", "HSX.L", "HSBA.L", "IMI.L", "IMB.L",
+    "INF.L", "IHG.L", "IAG.L", "ITRK.L", "KGF.L", "LAND.L", "LGEN.L", "LLOY.L",
+    "LSEG.L", "MNG.L", "MKS.L", "MRO.L", "NG.L", "NXT.L", "PCT.L", "PSON.L",
+    "PRU.L", "RKT.L", "REL.L", "RTO.L", "RIO.L", "RR.L", "SGE.L", "SBRY.L",
+    "SMT.L", "SGRO.L", "SVT.L", "SHEL.L", "SMIN.L", "SN.L", "SSE.L", "STAN.L",
+    "SDLF.L", "TSCO.L", "ULVR.L", "UU.L", "VOD.L", "WEIR.L",
+]
+
+SP500_PRESET_TICKERS = [
+    "MMM", "AOS", "ABT", "ABBV", "ACN", "ADBE", "AES", "AFL", "A", "APD",
+    "ABNB", "AKAM", "ALB", "ARE", "ALGN", "ALLE", "LNT", "ALL", "GOOGL", "GOOG",
+    "MO", "AMZN", "AMCR", "AMD", "AEE", "AEP", "AXP", "AIG", "AMT", "AWK",
+    "AMP", "AME", "AMGN", "APH", "ADI", "AON", "APA", "APO", "AAPL", "AMAT",
+    "APP", "APTV", "ACGL", "ADM", "ARES", "ANET", "AJG", "AIZ", "T", "ATO",
+    "NVDA", "BRK-B", "TSLA", "UNH", "LLY", "JPM", "XOM", "JNJ", "V", "PG",
+    "AVGO", "META", "HD", "CVX", "MRK", "PEP", "COST", "KO", "CSCO", "WMT",
+    "TMO", "MCD", "PFE", "CRM", "BAC", "CMCSA", "LIN", "NFLX", "ORCL", "DHR",
+    "WFC", "DIS", "TXN", "PM", "VZ", "INTU", "COP", "CAT", "UNP", "LOW",
+    "IBM", "BMY", "SPGI", "RTX", "HON", "BA", "UPS", "GE", "QCOM", "NKE",
+    "PLD", "NOW", "BKNG", "SBUX", "MS", "ELV", "MDT", "GS", "DE", "ADP",
+    "LMT", "TJX", "BLK", "ISRG", "MDLZ", "GILD", "MMC", "SYK", "REGN", "VRTX",
+    "ETN", "LRCX", "SCHW", "CVS", "ZTS", "CI", "CB", "MU", "PLTR", "PANW",
+    "GEV", "DELL", "C", "WELL", "KLAC", "VYLR", "TWLO", "OKTA", "BE", "P",
+    "ILMN", "RDDT", "FERG", "HONA", "MRVL", "FLEX", "FDXF",
+]
+
 KNOWN_TICKER_SECTORS = {
     "AAPL": "Technology",
     "MSFT": "Technology",
@@ -42,6 +75,16 @@ KNOWN_TICKER_SECTORS = {
     "MNG.L": "Financial Services",
     "SDLF.L": "Financial Services",
     "DUKE.L": "Financial Services",
+    "III.L": "Financial Services",
+    "ABDN.L": "Financial Services",
+    "ADM.L": "Financial Services",
+    "HSX.L": "Financial Services",
+    "LSEG.L": "Financial Services",
+    "PRU.L": "Financial Services",
+    "SDR.L": "Financial Services",
+    "SMT.L": "Financial Services",
+    "STAN.L": "Financial Services",
+    "FCIT.L": "Financial Services",
     "JPM": "Financial Services",
     "BRK-B": "Financial Services",
     "BLND.L": "Real Estate",
@@ -50,28 +93,69 @@ KNOWN_TICKER_SECTORS = {
     "SGRO.L": "Real Estate",
     "GSK.L": "Healthcare",
     "AZN.L": "Healthcare",
+    "HLN.L": "Healthcare",
+    "HLMA.L": "Healthcare",
     "JNJ": "Healthcare",
     "NG.L": "Utilities",
     "UKW.L": "Utilities",
     "SSE.L": "Utilities",
+    "SVT.L": "Utilities",
+    "UU.L": "Utilities",
     "CNA.L": "Utilities",
     "RR.L": "Industrials",
-    "UPS": "Industrials",
     "BA.L": "Industrials",
+    "BAB.L": "Industrials",
+    "BNZL.L": "Industrials",
+    "DPLM.L": "Industrials",
+    "EXPN.L": "Industrials",
+    "IMI.L": "Industrials",
+    "INF.L": "Industrials",
+    "ITRK.L": "Industrials",
+    "REL.L": "Industrials",
+    "RTO.L": "Industrials",
+    "SMIN.L": "Industrials",
+    "WEIR.L": "Industrials",
+    "UPS": "Industrials",
     "VOD.L": "Communication Services",
-    "VZ": "Communication Services",
     "BT-A.L": "Communication Services",
+    "VZ": "Communication Services",
     "BOWL.L": "Consumer Cyclical",
     "BWY.L": "Consumer Cyclical",
+    "BTRW.L": "Consumer Cyclical",
+    "ENT.L": "Consumer Cyclical",
+    "IHG.L": "Consumer Cyclical",
+    "KGF.L": "Consumer Cyclical",
+    "NXT.L": "Consumer Cyclical",
     "MO": "Consumer Defensive",
     "ULVR.L": "Consumer Defensive",
     "DGE.L": "Consumer Defensive",
     "TSCO.L": "Consumer Defensive",
+    "ABF.L": "Consumer Defensive",
+    "BATS.L": "Consumer Defensive",
+    "CCH.L": "Consumer Defensive",
+    "CCEP.L": "Consumer Defensive",
+    "CPG.L": "Consumer Defensive",
+    "IMB.L": "Consumer Defensive",
+    "MKS.L": "Consumer Defensive",
+    "RKT.L": "Consumer Defensive",
+    "SBRY.L": "Consumer Defensive",
     "SHEL.L": "Energy",
     "BP.L": "Energy",
     "RIO.L": "Basic Materials",
     "GLEN.L": "Basic Materials",
     "AAL.L": "Basic Materials",
+    "ANTO.L": "Basic Materials",
+    "EDV.L": "Basic Materials",
+    "FRES.L": "Basic Materials",
+    "ALW.L": "Technology",
+    "AUTO.L": "Technology",
+    "SGE.L": "Technology",
+    "AAF.L": "Industrials",
+    "BBY.L": "Industrials",
+    "MRO.L": "Industrials",
+    "PCT.L": "Financial Services",
+    "PSON.L": "Consumer Cyclical",
+    "SN.L": "Healthcare",
 }
 
 TIMELINE_PRESETS = {
@@ -110,6 +194,38 @@ def clean_tickers(raw_items) -> list[str]:
     return sorted(normalize_ticker_list(raw_items))
 
 
+@st.cache_data(ttl=86400)
+def get_live_ftse100_tickers() -> list[str]:
+    """Fetches current FTSE 100 constituents dynamically from Wikipedia, with preset fallback."""
+    url = "https://en.wikipedia.org/wiki/FTSE_100_Index"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        tables = pd.read_html(io.StringIO(response.text))
+        for table in tables:
+            if "Ticker" in table.columns:
+                raw_syms = (
+                    table["Ticker"]
+                    .astype(str)
+                    .str.strip()
+                    .str.replace(".", "-", regex=False)
+                    + ".L"
+                ).tolist()
+                cleaned = clean_tickers(raw_syms)
+                if len(cleaned) >= 50:
+                    return cleaned
+    except Exception:
+        pass
+    return clean_tickers(FTSE100_PRESET_TICKERS)
+
+
 def load_watchlists() -> dict[str, list[str]]:
     """Loads watchlists dictionary from local JSON file."""
     if os.path.exists(WATCHLIST_FILE):
@@ -140,6 +256,27 @@ def save_watchlists(watchlists: dict[str, list[str]]) -> bool:
         return True
     except OSError:
         return False
+
+
+def apply_tickers_to_watchlist(
+    wl_name: str, candidate_tickers: list[str], mode: str = "merge"
+) -> tuple[int, int]:
+    """Updates a watchlist with deduplicated tickers; returns (added_count, ignored_dupes)."""
+    deduped = normalize_ticker_list(candidate_tickers)
+    batch_dupes = len(candidate_tickers) - len(deduped)
+    existing = st.session_state.watchlists.get(wl_name, [])
+
+    if mode == "replace":
+        st.session_state.watchlists[wl_name] = clean_tickers(deduped)
+        save_watchlists(st.session_state.watchlists)
+        return len(deduped), batch_dupes
+
+    existing_set = set(existing)
+    truly_new = [t for t in deduped if t not in existing_set]
+    skipped_dupes = batch_dupes + (len(deduped) - len(truly_new))
+    st.session_state.watchlists[wl_name] = clean_tickers(existing + truly_new)
+    save_watchlists(st.session_state.watchlists)
+    return len(truly_new), skipped_dupes
 
 
 def load_sector_overrides() -> dict[str, str]:
@@ -243,18 +380,21 @@ def _fetch_live_sector_cached(symbol: str) -> str | None:
     return None
 
 
-def resolve_ticker_sector(ticker_symbol: str, overrides: dict[str, str]) -> str:
-    """Resolves sector via user overrides -> live Yahoo lookup -> built-in map -> 'Unclassified'."""
+def resolve_ticker_sector(
+    ticker_symbol: str, overrides: dict[str, str], allow_live_lookup: bool = True
+) -> str:
+    """Resolves sector via user overrides -> built-in map -> optional live Yahoo lookup -> 'Unclassified'."""
     sym = ticker_symbol.strip().upper()
     if sym in overrides and overrides[sym]:
         return overrides[sym]
 
-    live_sector = _fetch_live_sector_cached(sym)
-    if live_sector:
-        return live_sector
-
     if sym in KNOWN_TICKER_SECTORS:
         return KNOWN_TICKER_SECTORS[sym]
+
+    if allow_live_lookup:
+        live_sector = _fetch_live_sector_cached(sym)
+        if live_sector:
+            return live_sector
 
     return "Unclassified"
 
@@ -312,6 +452,28 @@ def fetch_timeline_prices(
             closes[col] = closes[col] / 100.0
 
     return closes.dropna(how="all")
+
+
+def build_sector_averages_df(
+    prices_df: pd.DataFrame, sector_map: dict[str, str]
+) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Groups price columns by sector and computes the row-wise mean share value per sector."""
+    sector_groups: dict[str, list[str]] = {}
+    for col in prices_df.columns:
+        sym = str(col).strip().upper()
+        sec = sector_map.get(sym, "Unclassified")
+        sector_groups.setdefault(sec, []).append(col)
+
+    sector_series_dict: dict[str, pd.Series] = {}
+    sector_ticker_labels: dict[str, str] = {}
+    for sec, group_cols in sorted(sector_groups.items()):
+        sector_series_dict[sec] = prices_df[group_cols].mean(axis=1, skipna=True)
+        sector_ticker_labels[sec] = ", ".join(str(c) for c in group_cols)
+
+    sector_df = pd.DataFrame(sector_series_dict, index=prices_df.index).dropna(
+        how="all"
+    )
+    return sector_df, sector_ticker_labels
 
 
 def build_line_figure(
@@ -485,6 +647,38 @@ with st.expander(
                 save_watchlists(st.session_state.watchlists)
                 st.rerun()
 
+        st.markdown("**Quick Index Loaders**")
+        idx_target = st.radio(
+            "Load Index Into",
+            options=["Dedicated index watchlist", "Active watchlist"],
+            horizontal=True,
+        )
+        if st.button("Load FTSE 100"):
+            dest_wl = (
+                "FTSE 100" if idx_target == "Dedicated index watchlist" else selected_wl
+            )
+            added, dupes = apply_tickers_to_watchlist(
+                dest_wl, get_live_ftse100_tickers(), mode="merge"
+            )
+            st.session_state.active_watchlist = dest_wl
+            st.toast(
+                f"Loaded {added} FTSE 100 ticker(s) into '{dest_wl}' ({dupes} duplicate(s) ignored)."
+            )
+            st.rerun()
+
+        if st.button("Load S&P 500"):
+            dest_wl = (
+                "S&P 500" if idx_target == "Dedicated index watchlist" else selected_wl
+            )
+            added, dupes = apply_tickers_to_watchlist(
+                dest_wl, SP500_PRESET_TICKERS, mode="merge"
+            )
+            st.session_state.active_watchlist = dest_wl
+            st.toast(
+                f"Loaded {added} S&P 500 ticker(s) into '{dest_wl}' ({dupes} duplicate(s) ignored)."
+            )
+            st.rerun()
+
     with m_col2:
         st.markdown(f"**Edit '{selected_wl}' Tickers**")
         add_ticker_raw = st.text_input(
@@ -497,11 +691,12 @@ with st.expander(
                 if t.strip()
             ]
             if to_add:
-                updated = clean_tickers(
-                    st.session_state.watchlists[selected_wl] + to_add
+                added, dupes = apply_tickers_to_watchlist(
+                    selected_wl, to_add, mode="merge"
                 )
-                st.session_state.watchlists[selected_wl] = updated
-                save_watchlists(st.session_state.watchlists)
+                st.toast(
+                    f"Added {added} ticker(s) to '{selected_wl}' ({dupes} duplicate(s) ignored)."
+                )
                 st.rerun()
 
         if wl_tickers:
@@ -540,7 +735,6 @@ with st.expander(
                     uploaded_wl_file, pasted_wl_tickers
                 )
                 deduped_import = normalize_ticker_list(raw_candidates)
-                batch_dupes = len(raw_candidates) - len(deduped_import)
 
                 if not deduped_import:
                     st.warning("No valid tickers found to import.")
@@ -550,43 +744,28 @@ with st.expander(
                         if uploaded_wl_file
                         else "Imported Watchlist"
                     )
-                    existing = st.session_state.watchlists.get(wl_target, [])
-                    existing_set = set(existing)
-                    truly_new = [t for t in deduped_import if t not in existing_set]
-                    skipped_dupes = batch_dupes + (
-                        len(deduped_import) - len(truly_new)
-                    )
-                    st.session_state.watchlists[wl_target] = clean_tickers(
-                        existing + truly_new
+                    added, skipped_dupes = apply_tickers_to_watchlist(
+                        wl_target, raw_candidates, mode="merge"
                     )
                     st.session_state.active_watchlist = wl_target
-                    save_watchlists(st.session_state.watchlists)
                     st.toast(
-                        f"Added {len(truly_new)} ticker(s) to '{wl_target}' ({skipped_dupes} duplicate(s) ignored)."
+                        f"Added {added} ticker(s) to '{wl_target}' ({skipped_dupes} duplicate(s) ignored)."
                     )
                     st.rerun()
                 elif import_mode == "Replace active":
-                    st.session_state.watchlists[selected_wl] = clean_tickers(
-                        deduped_import
+                    added, batch_dupes = apply_tickers_to_watchlist(
+                        selected_wl, raw_candidates, mode="replace"
                     )
-                    save_watchlists(st.session_state.watchlists)
                     st.toast(
-                        f"Replaced '{selected_wl}' with {len(deduped_import)} unique ticker(s) ({batch_dupes} duplicate(s) ignored)."
+                        f"Replaced '{selected_wl}' with {added} unique ticker(s) ({batch_dupes} duplicate(s) ignored)."
                     )
                     st.rerun()
                 else:
-                    existing = st.session_state.watchlists[selected_wl]
-                    existing_set = set(existing)
-                    truly_new = [t for t in deduped_import if t not in existing_set]
-                    skipped_dupes = batch_dupes + (
-                        len(deduped_import) - len(truly_new)
+                    added, skipped_dupes = apply_tickers_to_watchlist(
+                        selected_wl, raw_candidates, mode="merge"
                     )
-                    st.session_state.watchlists[selected_wl] = clean_tickers(
-                        existing + truly_new
-                    )
-                    save_watchlists(st.session_state.watchlists)
                     st.toast(
-                        f"Imported {len(truly_new)} new ticker(s) into '{selected_wl}' ({skipped_dupes} duplicate(s) ignored)."
+                        f"Imported {added} new ticker(s) into '{selected_wl}' ({skipped_dupes} duplicate(s) ignored)."
                     )
                     st.rerun()
             except Exception as exc:
@@ -646,109 +825,177 @@ if selected_tf == "Custom":
     with c_e:
         end_dt = st.date_input("End Date", value=today)
 
-if not tickers:
-    st.info("Select at least one share from your watchlist or enter a ticker.")
-    st.stop()
-
-prices = fetch_timeline_prices(tickers, selected_tf, start_dt, end_dt)
-if prices.empty:
-    st.warning("No price data available for the selected tickers or timeline.")
-    st.stop()
-
-tab_shares, tab_sectors = st.tabs(
-    ["📈 Share Price Timeline", "🏢 Sector Timeline"]
+tab_shares, tab_sectors, tab_ftse_sectors = st.tabs(
+    [
+        "📈 Share Price Timeline",
+        "🏢 Watchlist Sector Timeline",
+        "🇬🇧 FTSE 100 Sector Timeline",
+    ]
 )
 
 # --- TAB 1: INDIVIDUAL SHARE TIMELINE ---
 with tab_shares:
-    share_y_label = (
-        "Return (%)" if scale_mode == "Normalized (% Change)" else "Price (USD / GBP)"
-    )
-    share_fig = build_line_figure(
-        prices, scale_mode, share_y_label, entity_label="Share"
-    )
-    st.plotly_chart(share_fig, use_container_width=True)
-
-    st.subheader("Share Period Performance Summary")
-    share_rows = build_summary_rows(prices, "Ticker")
-    if share_rows:
-        st.dataframe(
-            pd.DataFrame(share_rows), use_container_width=True, hide_index=True
-        )
-
-# --- TAB 2: SECTOR AVERAGE TIMELINE ---
-with tab_sectors:
-    st.subheader("Sector Average Timeline")
-
-    ticker_to_sector = {
-        str(col).strip().upper(): resolve_ticker_sector(
-            str(col).strip().upper(), st.session_state.sector_overrides
-        )
-        for col in prices.columns
-    }
-
-    with st.expander("Adjust Sector Assignments (optional)", expanded=False):
-        mapping_df = pd.DataFrame(
-            [{"Ticker": sym, "Sector": sec} for sym, sec in ticker_to_sector.items()]
-        )
-        edited_df = st.data_editor(
-            mapping_df,
-            use_container_width=True,
-            hide_index=True,
-            disabled=["Ticker"],
-            key="sector_mapping_editor",
-        )
-        if st.button("Apply & Save Sector Assignments"):
-            for _, r in edited_df.iterrows():
-                t_sym = str(r["Ticker"]).strip().upper()
-                sec_val = str(r["Sector"]).strip() or "Unclassified"
-                st.session_state.sector_overrides[t_sym] = sec_val
-            save_sector_overrides(st.session_state.sector_overrides)
-            st.rerun()
-
-    sector_groups: dict[str, list[str]] = {}
-    for sym, sec in ticker_to_sector.items():
-        if sym in prices.columns:
-            sector_groups.setdefault(sec, []).append(sym)
-
-    sector_series_dict: dict[str, pd.Series] = {}
-    sector_ticker_labels: dict[str, str] = {}
-    for sec, group_cols in sorted(sector_groups.items()):
-        sector_series_dict[sec] = prices[group_cols].mean(axis=1, skipna=True)
-        sector_ticker_labels[sec] = ", ".join(group_cols)
-
-    sector_df = pd.DataFrame(sector_series_dict, index=prices.index).dropna(
-        how="all"
-    )
-
-    available_sectors = list(sector_df.columns)
-    selected_sectors = st.multiselect(
-        "Sectors to Plot",
-        options=available_sectors,
-        default=available_sectors,
-    )
-
-    if not selected_sectors:
-        st.info("Select at least one sector to display the sector timeline.")
+    if not tickers:
+        st.info("Select at least one share from your watchlist or enter a ticker.")
     else:
-        filtered_sector_df = sector_df[selected_sectors]
-        sector_y_label = (
-            "Average Return (%)"
-            if scale_mode == "Normalized (% Change)"
-            else "Average Share Value"
-        )
-        sector_fig = build_line_figure(
-            filtered_sector_df, scale_mode, sector_y_label, entity_label="Sector"
-        )
-        st.plotly_chart(sector_fig, use_container_width=True)
-
-        st.subheader("Sector Period Performance Summary")
-        sector_rows = build_summary_rows(
-            filtered_sector_df, "Sector", extra_map=sector_ticker_labels
-        )
-        if sector_rows:
-            st.dataframe(
-                pd.DataFrame(sector_rows),
-                use_container_width=True,
-                hide_index=True,
+        prices = fetch_timeline_prices(tickers, selected_tf, start_dt, end_dt)
+        if prices.empty:
+            st.warning("No price data available for the selected tickers or timeline.")
+        else:
+            share_y_label = (
+                "Return (%)"
+                if scale_mode == "Normalized (% Change)"
+                else "Price (USD / GBP)"
             )
+            share_fig = build_line_figure(
+                prices, scale_mode, share_y_label, entity_label="Share"
+            )
+            st.plotly_chart(share_fig, use_container_width=True)
+
+            st.subheader("Share Period Performance Summary")
+            share_rows = build_summary_rows(prices, "Ticker")
+            if share_rows:
+                st.dataframe(
+                    pd.DataFrame(share_rows), use_container_width=True, hide_index=True
+                )
+
+# --- TAB 2: WATCHLIST SECTOR AVERAGE TIMELINE ---
+with tab_sectors:
+    st.subheader("Watchlist Sector Average Timeline")
+    if not tickers:
+        st.info("Select at least one share from your watchlist or enter a ticker.")
+    else:
+        prices = fetch_timeline_prices(tickers, selected_tf, start_dt, end_dt)
+        if prices.empty:
+            st.warning("No price data available for the selected tickers or timeline.")
+        else:
+            ticker_to_sector = {
+                str(col).strip().upper(): resolve_ticker_sector(
+                    str(col).strip().upper(),
+                    st.session_state.sector_overrides,
+                    allow_live_lookup=True,
+                )
+                for col in prices.columns
+            }
+
+            with st.expander("Adjust Sector Assignments (optional)", expanded=False):
+                mapping_df = pd.DataFrame(
+                    [
+                        {"Ticker": sym, "Sector": sec}
+                        for sym, sec in ticker_to_sector.items()
+                    ]
+                )
+                edited_df = st.data_editor(
+                    mapping_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    disabled=["Ticker"],
+                    key="sector_mapping_editor",
+                )
+                if st.button("Apply & Save Sector Assignments"):
+                    for _, r in edited_df.iterrows():
+                        t_sym = str(r["Ticker"]).strip().upper()
+                        sec_val = str(r["Sector"]).strip() or "Unclassified"
+                        st.session_state.sector_overrides[t_sym] = sec_val
+                    save_sector_overrides(st.session_state.sector_overrides)
+                    st.rerun()
+
+            sector_df, sector_ticker_labels = build_sector_averages_df(
+                prices, ticker_to_sector
+            )
+            available_sectors = list(sector_df.columns)
+            selected_sectors = st.multiselect(
+                "Sectors to Plot",
+                options=available_sectors,
+                default=available_sectors,
+                key="wl_sectors_multiselect",
+            )
+
+            if not selected_sectors:
+                st.info("Select at least one sector to display the sector timeline.")
+            else:
+                filtered_sector_df = sector_df[selected_sectors]
+                sector_y_label = (
+                    "Average Return (%)"
+                    if scale_mode == "Normalized (% Change)"
+                    else "Average Share Value"
+                )
+                sector_fig = build_line_figure(
+                    filtered_sector_df,
+                    scale_mode,
+                    sector_y_label,
+                    entity_label="Sector",
+                )
+                st.plotly_chart(sector_fig, use_container_width=True)
+
+                st.subheader("Sector Period Performance Summary")
+                sector_rows = build_summary_rows(
+                    filtered_sector_df, "Sector", extra_map=sector_ticker_labels
+                )
+                if sector_rows:
+                    st.dataframe(
+                        pd.DataFrame(sector_rows),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+# --- TAB 3: FTSE 100 SECTOR AVERAGE TIMELINE ---
+with tab_ftse_sectors:
+    st.subheader("🇬🇧 FTSE 100 Sector Average Timeline")
+    st.caption(
+        "Averages all constituents within each FTSE 100 sector across the selected timeline (UK .L prices converted from pence to £)."
+    )
+
+    ftse_tickers = get_live_ftse100_tickers()
+    ftse_prices = fetch_timeline_prices(ftse_tickers, selected_tf, start_dt, end_dt)
+
+    if ftse_prices.empty:
+        st.warning("Could not load FTSE 100 price history for this timeline.")
+    else:
+        ftse_sector_map = {
+            str(col).strip().upper(): resolve_ticker_sector(
+                str(col).strip().upper(),
+                st.session_state.sector_overrides,
+                allow_live_lookup=False,
+            )
+            for col in ftse_prices.columns
+        }
+        ftse_sector_df, ftse_sector_labels = build_sector_averages_df(
+            ftse_prices, ftse_sector_map
+        )
+
+        ftse_sector_options = list(ftse_sector_df.columns)
+        selected_ftse_sectors = st.multiselect(
+            "FTSE 100 Sectors to Plot",
+            options=ftse_sector_options,
+            default=ftse_sector_options,
+            key="ftse_sectors_multiselect",
+        )
+
+        if not selected_ftse_sectors:
+            st.info("Select at least one FTSE 100 sector to plot.")
+        else:
+            filtered_ftse_df = ftse_sector_df[selected_ftse_sectors]
+            ftse_y_label = (
+                "Average Return (%)"
+                if scale_mode == "Normalized (% Change)"
+                else "Average Share Price (£)"
+            )
+            ftse_fig = build_line_figure(
+                filtered_ftse_df,
+                scale_mode,
+                ftse_y_label,
+                entity_label="FTSE 100 Sector",
+            )
+            st.plotly_chart(ftse_fig, use_container_width=True)
+
+            st.subheader("FTSE 100 Sector Period Performance Summary")
+            ftse_rows = build_summary_rows(
+                filtered_ftse_df, "Sector", extra_map=ftse_sector_labels
+            )
+            if ftse_rows:
+                st.dataframe(
+                    pd.DataFrame(ftse_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
