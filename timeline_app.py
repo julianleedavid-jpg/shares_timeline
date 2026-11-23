@@ -185,19 +185,19 @@ def clean_tickers(raw_items) -> list[str]:
 
 @st.cache_data(ttl=86400)
 def get_live_ftse100_tickers() -> list[str]:
-    """Fetches current FTSE 100 constituents dynamically from Wikipedia, with preset fallback[cite: 2]."""
-    url = "https://en.wikipedia.org/wiki/FTSE_100_Index"[cite: 2]
+    """Fetches current FTSE 100 constituents dynamically from Wikipedia, with preset fallback."""
+    url = "https://en.wikipedia.org/wiki/FTSE_100_Index"
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
         )
-    }[cite: 2]
+    }
     try:
-        response = requests.get(url, headers=headers, timeout=10)[cite: 2]
-        response.raise_for_status()[cite: 2]
-        tables = pd.read_html(io.StringIO(response.text))[cite: 2]
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        tables = pd.read_html(io.StringIO(response.text))
         for table in tables:
             if "Ticker" in table.columns:
                 raw_syms = (
@@ -206,7 +206,7 @@ def get_live_ftse100_tickers() -> list[str]:
                     .str.strip()
                     .str.replace(".", "-", regex=False)
                     + ".L"
-                ).tolist()[cite: 2]
+                ).tolist()
                 cleaned = clean_tickers(raw_syms)
                 if len(cleaned) >= 50:
                     return cleaned
@@ -217,19 +217,19 @@ def get_live_ftse100_tickers() -> list[str]:
 
 @st.cache_data(ttl=86400)
 def get_live_sp500_tickers() -> list[str]:
-    """Fetches current S&P 500 constituents dynamically from Wikipedia, with preset fallback[cite: 2]."""
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"[cite: 2]
+    """Fetches current S&P 500 constituents dynamically from Wikipedia, with preset fallback."""
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
         )
-    }[cite: 2]
+    }
     try:
-        response = requests.get(url, headers=headers, timeout=10)[cite: 2]
-        response.raise_for_status()[cite: 2]
-        tables = pd.read_html(io.StringIO(response.text))[cite: 2]
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        tables = pd.read_html(io.StringIO(response.text))
         for table in tables:
             if "Symbol" in table.columns:
                 raw_syms = (
@@ -237,7 +237,7 @@ def get_live_sp500_tickers() -> list[str]:
                     .astype(str)
                     .str.strip()
                     .str.replace(".", "-", regex=False)
-                ).tolist()[cite: 2]
+                ).tolist()
                 cleaned = clean_tickers(raw_syms)
                 if len(cleaned) >= 100:
                     return cleaned
