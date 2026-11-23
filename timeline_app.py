@@ -24,7 +24,6 @@ DEFAULT_WATCHLISTS = {
     ],
 }
 
-# Reliable fallback sector map when Yahoo Finance quoteSummary/.info is rate-limited
 KNOWN_TICKER_SECTORS = {
     "AAPL": "Technology",
     "MSFT": "Technology",
@@ -380,6 +379,23 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
 )
+
+st.markdown(
+    """
+    <style>
+    div[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+        flex-wrap: wrap !important;
+        max-height: none !important;
+        overflow-y: visible !important;
+    }
+    div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
+        max-width: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.title("📊 Watchlist & Sector Share Price Timeline")
 
 if "watchlists" not in st.session_state:
@@ -392,7 +408,7 @@ if "active_watchlist" not in st.session_state or st.session_state.active_watchli
     st.session_state.active_watchlist = wl_names[0]
 
 # --- WATCHLIST SELECTION & MANAGEMENT ---
-col_w1, col_w2, col_w3 = st.columns([1.2, 2.2, 1.3])
+col_w1, col_w2, col_w3 = st.columns([1.0, 3.2, 1.1])
 with col_w1:
     selected_wl = st.selectbox(
         "Watchlist",
