@@ -199,7 +199,7 @@ def get_live_ftse100_tickers() -> list[str]:
         response.raise_for_status()[cite: 2]
         tables = pd.read_html(io.StringIO(response.text))[cite: 2]
         for table in tables:
-            if "Ticker" in table.columns:[cite: 2]
+            if "Ticker" in table.columns:
                 raw_syms = (
                     table["Ticker"]
                     .astype(str)
