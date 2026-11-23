@@ -89,14 +89,25 @@ TIMELINE_PRESETS = {
 }
 
 
-def clean_tickers(raw_items) -> list[str]:
-    """Normalizes, deduplicates, and sorts a list/iterable of ticker symbols."""
-    cleaned = set()
+def normalize_ticker_list(raw_items) -> list[str]:
+    """Normalizes, deduplicates (preserving order), and filters header tokens."""
+    seen: set[str] = set()
+    result: list[str] = []
     for item in raw_items:
         token = str(item).strip().upper()
-        if token and token not in {"TICKER", "SYMBOL", "TICKERS", "SYMBOLS"}:
-            cleaned.add(token)
-    return sorted(cleaned)
+        if (
+            token
+            and token not in {"TICKER", "SYMBOL", "TICKERS", "SYMBOLS"}
+            and token not in seen
+        ):
+            seen.add(token)
+            result.append(token)
+    return result
+
+
+def clean_tickers(raw_items) -> list[str]:
+    """Returns a sorted, deduplicated list of ticker symbols."""
+    return sorted(normalize_ticker_list(raw_items))
 
 
 def load_watchlists() -> dict[str, list[str]]:
@@ -158,8 +169,8 @@ def save_sector_overrides(overrides: dict[str, str]) -> bool:
         return False
 
 
-def parse_imported_tickers(uploaded_file, pasted_text: str) -> list[str]:
-    """Extracts ticker symbols from an uploaded CSV/TXT/JSON file or pasted text."""
+def extract_raw_imported_tokens(uploaded_file, pasted_text: str) -> list[str]:
+    """Extracts raw ticker tokens before deduplication from an uploaded file or pasted text."""
     extracted: list[str] = []
 
     if uploaded_file is not None:
@@ -202,7 +213,7 @@ def parse_imported_tickers(uploaded_file, pasted_text: str) -> list[str]:
             for part in line.split(","):
                 extracted.append(part)
 
-    return clean_tickers(extracted)
+    return extracted
 
 
 @st.cache_data(ttl=86400)
@@ -312,7 +323,9 @@ def build_line_figure(
         for col in series_df.columns:
             s = series_df[col].dropna()
             if not s.empty and float(s.iloc[0]) != 0.0:
-                plot_df[col] = ((series_df[col] - float(s.iloc[0])) / float(s.iloc[0])) * 100.0
+                plot_df[col] = (
+                    (series_df[col] - float(s.iloc[0])) / float(s.iloc[0])
+                ) * 100.0
         hover_fmt = "%{y:+.2f}%"
     else:
         plot_df = series_df
@@ -383,13 +396,19 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    div[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+    div[data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child {
+        display: flex !important;
         flex-wrap: wrap !important;
+        gap: 0.25rem !important;
+        height: auto !important;
+        min-height: 2.75rem !important;
         max-height: none !important;
         overflow-y: visible !important;
+        overflow-x: visible !important;
     }
     div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
         max-width: none !important;
+        flex-shrink: 0 !important;
     }
     </style>
     """,
@@ -404,11 +423,14 @@ if "sector_overrides" not in st.session_state:
     st.session_state.sector_overrides = load_sector_overrides()
 
 wl_names = list(st.session_state.watchlists.keys())
-if "active_watchlist" not in st.session_state or st.session_state.active_watchlist not in wl_names:
+if (
+    "active_watchlist" not in st.session_state
+    or st.session_state.active_watchlist not in wl_names
+):
     st.session_state.active_watchlist = wl_names[0]
 
 # --- WATCHLIST SELECTION & MANAGEMENT ---
-col_w1, col_w2, col_w3 = st.columns([1.0, 3.2, 1.1])
+col_w1, col_w3 = st.columns([1.5, 1.5])
 with col_w1:
     selected_wl = st.selectbox(
         "Watchlist",
@@ -417,14 +439,6 @@ with col_w1:
     )
     st.session_state.active_watchlist = selected_wl
 
-wl_tickers = st.session_state.watchlists.get(selected_wl, [])
-with col_w2:
-    selected_tickers = st.multiselect(
-        f"Shares in '{selected_wl}'",
-        options=wl_tickers,
-        default=wl_tickers,
-    )
-
 with col_w3:
     extra_raw = st.text_input(
         "Temporary Compare Tickers (optional)",
@@ -432,12 +446,24 @@ with col_w3:
         placeholder="e.g., NVDA, AZN.L",
     )
 
-with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export", expanded=False):
+wl_tickers = st.session_state.watchlists.get(selected_wl, [])
+selected_tickers = st.multiselect(
+    f"Shares in '{selected_wl}' ({len(wl_tickers)} in watchlist)",
+    options=wl_tickers,
+    default=wl_tickers,
+    key=f"wl_multiselect_{selected_wl}",
+)
+
+with st.expander(
+    "🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export", expanded=False
+):
     m_col1, m_col2, m_col3 = st.columns(3)
 
     with m_col1:
         st.markdown("**Watchlists**")
-        new_wl_name = st.text_input("New Watchlist Name", placeholder="e.g., UK Income")
+        new_wl_name = st.text_input(
+            "New Watchlist Name", placeholder="e.g., UK Income"
+        )
         if st.button("Create Watchlist"):
             clean_name = new_wl_name.strip()
             if not clean_name:
@@ -453,7 +479,9 @@ with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export"
         if len(st.session_state.watchlists) > 1:
             if st.button(f"Delete '{selected_wl}'"):
                 del st.session_state.watchlists[selected_wl]
-                st.session_state.active_watchlist = list(st.session_state.watchlists.keys())[0]
+                st.session_state.active_watchlist = list(
+                    st.session_state.watchlists.keys()
+                )[0]
                 save_watchlists(st.session_state.watchlists)
                 st.rerun()
 
@@ -469,7 +497,9 @@ with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export"
                 if t.strip()
             ]
             if to_add:
-                updated = clean_tickers(st.session_state.watchlists[selected_wl] + to_add)
+                updated = clean_tickers(
+                    st.session_state.watchlists[selected_wl] + to_add
+                )
                 st.session_state.watchlists[selected_wl] = updated
                 save_watchlists(st.session_state.watchlists)
                 st.rerun()
@@ -506,8 +536,13 @@ with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export"
         )
         if st.button("Import Tickers"):
             try:
-                imported = parse_imported_tickers(uploaded_wl_file, pasted_wl_tickers)
-                if not imported:
+                raw_candidates = extract_raw_imported_tokens(
+                    uploaded_wl_file, pasted_wl_tickers
+                )
+                deduped_import = normalize_ticker_list(raw_candidates)
+                batch_dupes = len(raw_candidates) - len(deduped_import)
+
+                if not deduped_import:
                     st.warning("No valid tickers found to import.")
                 elif import_mode == "Create new watchlist":
                     wl_target = target_import_wl.strip() or (
@@ -516,26 +551,54 @@ with st.expander("🗂️ Manage Watchlists, Add/Remove Tickers & Import/Export"
                         else "Imported Watchlist"
                     )
                     existing = st.session_state.watchlists.get(wl_target, [])
-                    st.session_state.watchlists[wl_target] = clean_tickers(existing + imported)
+                    existing_set = set(existing)
+                    truly_new = [t for t in deduped_import if t not in existing_set]
+                    skipped_dupes = batch_dupes + (
+                        len(deduped_import) - len(truly_new)
+                    )
+                    st.session_state.watchlists[wl_target] = clean_tickers(
+                        existing + truly_new
+                    )
                     st.session_state.active_watchlist = wl_target
                     save_watchlists(st.session_state.watchlists)
+                    st.toast(
+                        f"Added {len(truly_new)} ticker(s) to '{wl_target}' ({skipped_dupes} duplicate(s) ignored)."
+                    )
                     st.rerun()
                 elif import_mode == "Replace active":
-                    st.session_state.watchlists[selected_wl] = imported
-                    save_watchlists(st.session_state.watchlists)
-                    st.rerun()
-                else:
                     st.session_state.watchlists[selected_wl] = clean_tickers(
-                        st.session_state.watchlists[selected_wl] + imported
+                        deduped_import
                     )
                     save_watchlists(st.session_state.watchlists)
+                    st.toast(
+                        f"Replaced '{selected_wl}' with {len(deduped_import)} unique ticker(s) ({batch_dupes} duplicate(s) ignored)."
+                    )
+                    st.rerun()
+                else:
+                    existing = st.session_state.watchlists[selected_wl]
+                    existing_set = set(existing)
+                    truly_new = [t for t in deduped_import if t not in existing_set]
+                    skipped_dupes = batch_dupes + (
+                        len(deduped_import) - len(truly_new)
+                    )
+                    st.session_state.watchlists[selected_wl] = clean_tickers(
+                        existing + truly_new
+                    )
+                    save_watchlists(st.session_state.watchlists)
+                    st.toast(
+                        f"Imported {len(truly_new)} new ticker(s) into '{selected_wl}' ({skipped_dupes} duplicate(s) ignored)."
+                    )
                     st.rerun()
             except Exception as exc:
                 st.error(f"Could not import tickers: {exc}")
 
         slug_name = selected_wl.lower().replace(" ", "_")
-        csv_export = pd.DataFrame({"Ticker": wl_tickers}).to_csv(index=False).encode("utf-8")
-        json_export = json.dumps({selected_wl: wl_tickers}, indent=4).encode("utf-8")
+        csv_export = (
+            pd.DataFrame({"Ticker": wl_tickers}).to_csv(index=False).encode("utf-8")
+        )
+        json_export = json.dumps({selected_wl: wl_tickers}, indent=4).encode(
+            "utf-8"
+        )
 
         exp_c1, exp_c2 = st.columns(2)
         with exp_c1:
@@ -577,7 +640,9 @@ if selected_tf == "Custom":
     today = datetime.today().date()
     c_s, c_e = st.columns(2)
     with c_s:
-        start_dt = st.date_input("Start Date", value=today - timedelta(days=180))
+        start_dt = st.date_input(
+            "Start Date", value=today - timedelta(days=180)
+        )
     with c_e:
         end_dt = st.date_input("End Date", value=today)
 
@@ -590,18 +655,26 @@ if prices.empty:
     st.warning("No price data available for the selected tickers or timeline.")
     st.stop()
 
-tab_shares, tab_sectors = st.tabs(["📈 Share Price Timeline", "🏢 Sector Timeline"])
+tab_shares, tab_sectors = st.tabs(
+    ["📈 Share Price Timeline", "🏢 Sector Timeline"]
+)
 
 # --- TAB 1: INDIVIDUAL SHARE TIMELINE ---
 with tab_shares:
-    share_y_label = "Return (%)" if scale_mode == "Normalized (% Change)" else "Price (USD / GBP)"
-    share_fig = build_line_figure(prices, scale_mode, share_y_label, entity_label="Share")
+    share_y_label = (
+        "Return (%)" if scale_mode == "Normalized (% Change)" else "Price (USD / GBP)"
+    )
+    share_fig = build_line_figure(
+        prices, scale_mode, share_y_label, entity_label="Share"
+    )
     st.plotly_chart(share_fig, use_container_width=True)
 
     st.subheader("Share Period Performance Summary")
     share_rows = build_summary_rows(prices, "Ticker")
     if share_rows:
-        st.dataframe(pd.DataFrame(share_rows), use_container_width=True, hide_index=True)
+        st.dataframe(
+            pd.DataFrame(share_rows), use_container_width=True, hide_index=True
+        )
 
 # --- TAB 2: SECTOR AVERAGE TIMELINE ---
 with tab_sectors:
@@ -644,7 +717,9 @@ with tab_sectors:
         sector_series_dict[sec] = prices[group_cols].mean(axis=1, skipna=True)
         sector_ticker_labels[sec] = ", ".join(group_cols)
 
-    sector_df = pd.DataFrame(sector_series_dict, index=prices.index).dropna(how="all")
+    sector_df = pd.DataFrame(sector_series_dict, index=prices.index).dropna(
+        how="all"
+    )
 
     available_sectors = list(sector_df.columns)
     selected_sectors = st.multiselect(
@@ -673,5 +748,7 @@ with tab_sectors:
         )
         if sector_rows:
             st.dataframe(
-                pd.DataFrame(sector_rows), use_container_width=True, hide_index=True
+                pd.DataFrame(sector_rows),
+                use_container_width=True,
+                hide_index=True,
             )
